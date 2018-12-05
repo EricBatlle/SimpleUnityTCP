@@ -1,103 +1,139 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class Client : MonoBehaviour
-{    
+{
+    #region Public Variables
+    [Header("Network")]
     public string ipAddress = "127.0.0.1";
     public int port = 54010;
-    [Space()]
-    public Button getQuoteButton;
+    [Header("UI References")]
+    public Button sendCloseButton;
     public Text ClientLogger = null;
+    #endregion
 
-    private TcpClient client;
-    private string receivedMessage;
-    private byte[] buf = new byte[49152];
+    #region Network m_Variables
+    private TcpClient m_client;
+    private NetworkStream m_netStream = null;
+    private byte[] m_buffer = new byte[49152];
+    private int m_bytesReceived = 0;
+    private string m_receivedMessage = "";
+    #endregion
 
-    private void ClientLog(string msg)
-    {
-        ClientLogger.text += '\n'+"- " + msg;
-        Debug.Log("Client: "+msg);
-    }
-
+    //Set UI interactable properties
     private void Start()
     {
-        getQuoteButton.interactable = false;
+        sendCloseButton.interactable = false;
     }
-
+    
+    //Start client and stablish connection with server
     public void StartClient()
     {
-        client = new TcpClient();
+        //Early out
+        if(m_client != null)
+        {
+            ClientLog("There is already a runing client", Color.red);
+            return;
+        }
+        
         try
         {
-            client.Connect(ipAddress, port);
-            ClientLog("Client Started");
-            getQuoteButton.interactable = true;
+            //Create new client
+            m_client = new TcpClient();
+            //Set and enable client
+            m_client.Connect(ipAddress, port);
+            ClientLog("Client Started", Color.green);
+            sendCloseButton.interactable = true;
         }
-        catch (SocketException exception)
+        catch (SocketException)
         {
-            ClientLog("Socket Error: Start Server first");
+            ClientLog("Socket Error: Start Server first", Color.red);
+            CloseClient();
         }        
     }
 
-    void Update()
+    //Check if the client has been recived something
+    private void Update()
     {
-        if (!string.IsNullOrEmpty(receivedMessage))
+        //If there is something received
+        if (!string.IsNullOrEmpty(m_receivedMessage))
         {
-            ClientLog("ReceivedMessage on Client" + receivedMessage);
-            receivedMessage = "";
-
-            getQuoteButton.interactable = false;
+            ClientLog("Msg recived on Client: " + "<b>"+m_receivedMessage+"</b>", Color.green);
+            m_receivedMessage = "";
+            //Set UI interactable properties
+            sendCloseButton.interactable = false;
+            
+            //Close message has to be there, as UI calls can't be called on no-main threads
+            ClientLog("Close Connection with Server", Color.red);
         }
     }
 
-    //Button event to read/send to server
-    public void GetQuote() 
+    //Send "Close" message to the server, and waits the "Close" message response from server
+    public void SendCloseToServer() 
     {
-        if (!client.Connected) return; //early Out
+        if (!m_client.Connected) return; //early out if there is nothing connected
+        
+        //Set UI interactable properties        
+        sendCloseButton.interactable = false;
 
-        getQuoteButton.interactable = false;
-        receivedMessage = "";
+        //Stablish Client NetworkStream information
+        m_netStream = m_client.GetStream();
+        //Start Async Reading
+        m_netStream.BeginRead(m_buffer, 0, m_buffer.Length, MessageReceived, null);
 
-        //Set up async Read
-        var stream = client.GetStream();
-        stream.BeginRead(buf, 0, buf.Length, MessageReceived, null);
-        ClientLog("Setted async Read, begin send msg");        
-        // send message
-        byte[] msg = Encoding.ASCII.GetBytes("QUOTE");
-        stream.Write(msg, 0, msg.Length);
-        ClientLog("Sended msg QUOTE to SV");
+        //Build message to server
+        string sendMsg = "Close";
+        byte[] msg = Encoding.ASCII.GetBytes(sendMsg);
+        //Start Sync Writing
+        m_netStream.Write(msg, 0, msg.Length);
+        ClientLog("Msg sended to Server: "+"<b>Close</b>", Color.blue);
     }
 
-    void MessageReceived(IAsyncResult res)
+    //Callback called when "BeginRead" is ended
+    private void MessageReceived(IAsyncResult result)
     {
-        if (res.IsCompleted && client.Connected)
+        if (result.IsCompleted && m_client.Connected)
         {
-            var stream = client.GetStream();
-            int bytesIn = stream.EndRead(res);
-
-            receivedMessage = Encoding.ASCII.GetString(buf, 0, bytesIn);
-            if (receivedMessage == "QUOTE")
+            //build message received from server
+            m_bytesReceived = m_netStream.EndRead(result);
+            m_receivedMessage = Encoding.ASCII.GetString(m_buffer, 0, m_bytesReceived);
+            
+            //If message recived from server is "Close", close that client
+            if (m_receivedMessage == "Close")
             {
-                client.Close();
-                getQuoteButton.interactable = false;
+                CloseClient();
             }
         }
     }
 
-    void OnDestroy()
+    //Close client connection
+    private void CloseClient()
     {
-        if (client.Connected)
+        if (m_client.Connected)
         {
-            client.Close();
+            //Reset everything to defaults
+            m_client.Close();
+            m_client = null;
+            //Set UI interactable properties        
+            sendCloseButton.interactable = false;
         }
     }
 
-    
+    //Custom Server Log
+    #region ClientLog
+    private void ClientLog(string msg, Color color)
+    {
+        ClientLogger.text += '\n' + "<color=#" + ColorUtility.ToHtmlStringRGBA(color) + ">- " + msg + "</color>";
+        Debug.Log("Client: " + msg);
+    }
+    private void ClientLog(string msg)
+    {
+        ClientLogger.text += '\n' + "- " + msg;
+        Debug.Log("Client: " + msg);
+    }
+    #endregion
 
-    
 }

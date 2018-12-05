@@ -251,8 +251,8 @@ Camera:
   m_GameObject: {fileID: 41868469}
   m_Enabled: 1
   serializedVersion: 2
-  m_ClearFlags: 1
-  m_BackGroundColor: {r: 0.8308824, g: 0.8308824, b: 0.8308824, a: 0}
+  m_ClearFlags: 2
+  m_BackGroundColor: {r: 0.8897059, g: 0.8897059, b: 0.8897059, a: 0}
   m_NormalizedViewPortRect:
     serializedVersion: 2
     x: 0
@@ -436,7 +436,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Client Logs:
+  m_Text: '<b>Client Logs:</b>
 
 '
 --- !u!222 &393140547
@@ -513,7 +513,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Server Logs:
+  m_Text: '<b>Server Logs:</b>
 
 '
 --- !u!222 &419182553
@@ -551,7 +551,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ipAdress: 127.0.0.1
   port: 54010
-  messagesLapsedTime: 5
+  waitingMessagesFrequency: 2
+  responseMessage: Close
   startServerButton: {fileID: 1515171188}
   closeServerButton: {fileID: 1194465309}
   ServerLogger: {fileID: 419182552}
@@ -726,7 +727,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0.30588236, g: 0.19215687, b: 0.9254902, a: 0.28627452}
   m_RaycastTarget: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
@@ -1093,7 +1094,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ipAddress: 127.0.0.1
   port: 54010
-  getQuoteButton: {fileID: 2039929194}
+  sendCloseButton: {fileID: 2039929194}
   ClientLogger: {fileID: 393140546}
 --- !u!4 &1032946125
 Transform:
@@ -1334,7 +1335,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: GetQuote
+  m_Text: Send <b>Close</b> to Server
 --- !u!222 &1343745844
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1575,7 +1576,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 0.30588236, g: 0.19215687, b: 0.9254902, a: 0.28627452}
   m_RaycastTarget: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
@@ -1730,7 +1731,7 @@ GameObject:
   - component: {fileID: 2039929195}
   - component: {fileID: 2039929194}
   m_Layer: 5
-  m_Name: GetQuote_btn
+  m_Name: SendClose_btn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1795,7 +1796,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1032946124}
-        m_MethodName: GetQuote
+        m_MethodName: SendCloseToServer
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
