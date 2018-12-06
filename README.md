@@ -2,7 +2,7 @@
 
 A simple **demo-project** to show how **TCP** communication works on **Unity** environment, builded with **C#** and using [System.Net.Sockets](https://docs.microsoft.com/es-es/dotnet/api/system.net.sockets?view=netframework-4.7.2). 
 
-The main porpouse of this repo is to show the TCP communication on runtime, but also to provide a pretty commented and clear code so everyone else that wants to implement that kind of communication will be able without wasting lots of time.
+The main porpouse of this repo is to show the TCP communication on runtime, but also to provide a pretty commented and clear code so everyone else that wants to implement that kind of communication will be able without wasting a lot of time.
 
 ## Video-Example 📲
 
@@ -21,7 +21,7 @@ If you only want to scratch the code, either inside the unity project or simply 
 * ``Client.cs``
 
 ## More Explanations 📡
-**Note:** Unity do not allow the *save-use* of **Multi-Threading**, so you'll see that instead the application is using **Co-routines**.
+**Note:** Unity do not allow the *save-use* of **Multi-Threading**, so the application is using **Co-routines** instead.
 
 The stablished communication and workflow stablished right now follows the next order:
 
