@@ -6,7 +6,7 @@ The main porpouse of this repo is to show the TCP communication on runtime, but 
 
 ## Video-Example 📲
 
-<p align="center">
+<p>
   <img src="example_app.gif" alt="example_app gif"/>
 </p>
 
@@ -21,13 +21,13 @@ If you only want to scratch the code, either inside the unity project or simply 
 * ``Client.cs``
 
 ## More Explanations 📡
-**Note:**Unity do not allow the *save-use* of **Multi-Threading**, so you'll see that instead the application is using **Co-routines**.
+**Note:** Unity do not allow the *save-use* of **Multi-Threading**, so you'll see that instead the application is using **Co-routines**.
 
 The stablished communication and workflow stablished right now follows the next order:
 
 * **Start the Server** and let him waiting for client connections.
 * **Start the Client** and connect him to the server.
-* Now the **server is waiting** for client messages...
+* **Server waits** for client messages...
 * **Client send** the message *Close* to the server.
 * **Server recives** that *Close* message.
 * **Server send a response** to the client, sending the same message, *Close*.
