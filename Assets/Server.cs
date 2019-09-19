@@ -4,7 +4,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class Server : MonoBehaviour
 {
@@ -13,11 +12,6 @@ public class Server : MonoBehaviour
     public string ipAdress = "127.0.0.1";
     public int port = 54010;
     public float waitingMessagesFrequency = 5;
-    public string responseMessage = "Close";
-    [Header("UI References")]
-    public Button startServerButton;
-    public Button closeServerButton;
-    public Text ServerLogger = null;
     #endregion
 
     #region  Network m_Variables
@@ -26,19 +20,16 @@ public class Server : MonoBehaviour
     private NetworkStream m_netStream = null;
     private byte[] m_buffer = new byte[49152];
     private int m_bytesReceived = 0;
-    private string m_receivedMessage = "";
+    protected string m_receivedMessage = "";
     private IEnumerator m_ClientComCoroutine = null;
     #endregion
 
-    //Set UI interactable properties
-    private void Start()
-    {
-        startServerButton.interactable = true;  //Enable button to let users start the server
-        closeServerButton.interactable = false; //Disable button until the server is started
-    }
+    protected Action OnServerStarted = null;    //Delegate triggered when server start
+    protected Action OnServerClosed = null;    //Delegate triggered when server close
+
 
     //Start server and wait for clients
-    public void StartServer()
+    protected virtual void StartServer()
     {        
         //Set and enable Server 
         IPAddress ip = IPAddress.Parse(ipAdress);
@@ -47,8 +38,7 @@ public class Server : MonoBehaviour
         ServerLog("Server Started", Color.green);
         //Wait for async client connection 
         m_server.BeginAcceptTcpClient(ClientConnected, null);
-        //Set UI interactable properties
-        startServerButton.interactable = false; //Disable button to avoid initilize more than one server
+        OnServerStarted?.Invoke();
     }
 
     //Check if any client trys to connect
@@ -61,8 +51,16 @@ public class Server : MonoBehaviour
             m_ClientComCoroutine = ClientCommunication();
             StartCoroutine(m_ClientComCoroutine);
         }
-    }    
+    }
 
+    //Callback called when "BeginAcceptTcpClient" detects new client connection
+    private void ClientConnected(IAsyncResult res)
+    {
+        //set the client reference
+        m_client = m_server.EndAcceptTcpClient(res);
+    }
+
+    #region Communication Server/Client
     //Coroutine that manage client communication while client is connected to the server
     private IEnumerator ClientCommunication()
     {        
@@ -72,35 +70,49 @@ public class Server : MonoBehaviour
 
         //Stablish Client NetworkStream information
         m_netStream = m_client.GetStream();
+
         //While there is a connection with the client, await for messages
         do
         {
             ServerLog("Server is listening client msg...", Color.yellow);
-            //Start Async Reading
+            //Start Async Reading from Client and manage the response on MessageReceived function
             m_netStream.BeginRead(m_buffer, 0, m_buffer.Length, MessageReceived,  m_netStream);
 
-            //If there is any msg
-            if (m_bytesReceived > 0)
-            {
-                ServerLog("Msg recived on Server: " + "<b>" + m_receivedMessage + "</b>", Color.green);
-                //If message received from client is "Close", send another "Close" to the client
-                if (m_receivedMessage == "Close")
-                {
-                    //Build message to client
-                    string sendMsg = responseMessage;                   //In this case we send "Close" to end the client connection
-                    byte[] msgOut = Encoding.ASCII.GetBytes(sendMsg); //Encode message as bytes
-                    //Start Sync Writing
-                    m_netStream.Write(msgOut, 0, msgOut.Length);      
-                    ServerLog("Msg sended to Client: " + "<b>" + sendMsg + "</b>", Color.blue);
-                    //Close connection with the client
-                    CloseConnection();
-                }
-            }
+            //If there is any msg, do something
+            if (m_bytesReceived > 0)            
+                OnMessageReceived(m_receivedMessage);            
+
             yield return new WaitForSeconds(waitingMessagesFrequency);
 
         } while (m_bytesReceived >= 0 && m_netStream != null);   
         //The communication is over
-        CloseConnection();
+        CloseClientConnection();
+    }
+
+    //What to do with the received message on server
+    protected virtual void OnMessageReceived(string receivedMessage)
+    {
+        ServerLog("Msg recived on Server: " + "<b>" + receivedMessage + "</b>", Color.green);
+        switch (receivedMessage)
+        {
+            case "Close":
+                //In this case we send "Close" to shut down client
+                SendMessageToClient("Close");
+                //Close client connection
+                CloseClientConnection();
+                break;
+            default:
+                ServerLog("Received message :" + receivedMessage + ", has no special behaviuor", Color.red);
+                break;
+        }
+    }
+    protected void SendMessageToClient(string sendMsg)
+    {
+        //Build message to client        
+        byte[] msgOut = Encoding.ASCII.GetBytes(sendMsg); //Encode message as bytes
+        //Start Sync Writing
+        m_netStream.Write(msgOut, 0, msgOut.Length);
+        ServerLog("Msg sended to Client: " + "<b>" + sendMsg + "</b>", Color.blue);
     }
 
     //Callback called when "BeginRead" is ended
@@ -110,36 +122,14 @@ public class Server : MonoBehaviour
         {
             //build message received from client
             m_bytesReceived = m_netStream.EndRead(result);                              //End async reading
-            m_receivedMessage = Encoding.ASCII.GetString(m_buffer, 0, m_bytesReceived);   //De-encode message as string
+            m_receivedMessage = Encoding.ASCII.GetString(m_buffer, 0, m_bytesReceived); //De-encode message as string
         }
     }
+    #endregion    
 
-    //Callback called when "BeginAcceptTcpClient" detects new client connection
-    private void ClientConnected(IAsyncResult res)
-    {
-        //set the client reference
-        m_client = m_server.EndAcceptTcpClient(res); 
-    }
-
-    //Close connection with the client
-    private void CloseConnection()
-    {
-        ServerLog("Close Connection with Client", Color.red);
-        //Reset everything to defaults
-        StopCoroutine(m_ClientComCoroutine);
-        m_ClientComCoroutine = null;
-        m_client.Close();
-        m_client = null;
-
-        //Set UI interactable properties
-        closeServerButton.interactable = true;  //Enable button to let users close the server
-
-        //Waiting to Accept a new Client
-        m_server.BeginAcceptTcpClient(ClientConnected, null);
-    }    
-
+    #region Close Server/ClientConnection
     //Close client connection and disables the server
-    public void CloseServer()
+    protected virtual void CloseServer()
     {
         ServerLog("Server Closed", Color.red);
         //Close client connection
@@ -151,27 +141,40 @@ public class Server : MonoBehaviour
             m_client = null;
         }
         //Close server connection
-        if(m_server != null)
+        if (m_server != null)
         {
             m_server.Stop();
             m_server = null;
-            startServerButton.interactable = true;
-            closeServerButton.interactable = false;
-        }        
+        }
+
+        OnServerClosed?.Invoke();
     }
+
+    //Close connection with the client
+    protected virtual void CloseClientConnection()
+    {
+        ServerLog("Close Connection with Client", Color.red);
+        //Reset everything to defaults
+        StopCoroutine(m_ClientComCoroutine);
+        m_ClientComCoroutine = null;
+        m_client.Close();
+        m_client = null;
+
+        //Waiting to Accept a new Client
+        m_server.BeginAcceptTcpClient(ClientConnected, null);
+    }        
+    #endregion
 
     //Custom Server Log
     #region ServerLog
     //With Text Color
-    private void ServerLog(string msg, Color color)
+    protected virtual void ServerLog(string msg, Color color)
     {
-        ServerLogger.text += '\n' + "<color=#"+ColorUtility.ToHtmlStringRGBA(color)+">- " + msg + "</color>";
         Debug.Log("Server: " + msg);
     }
     //Without Text Color
-    private void ServerLog(string msg)
+    protected virtual void ServerLog(string msg)
     {
-        ServerLogger.text += '\n' + "- " + msg;
         Debug.Log("Server: " + msg);
     }
     #endregion

@@ -591,16 +591,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 424903499}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7f56d79c293872d47beea7988fd6f21d, type: 3}
+  m_Script: {fileID: 11500000, guid: 80f16ff733833af408de5a338ce97b78, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ipAdress: 127.0.0.1
   port: 54010
-  waitingMessagesFrequency: 2
-  responseMessage: Close
-  startServerButton: {fileID: 1515171188}
-  closeServerButton: {fileID: 1194465309}
-  ServerLogger: {fileID: 419182552}
+  waitingMessagesFrequency: 5
 --- !u!4 &424903501
 Transform:
   m_ObjectHideFlags: 0
@@ -1170,14 +1166,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 1032946123}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62e7418ed899bdb4dba585edbfdf0cc8, type: 3}
+  m_Script: {fileID: 11500000, guid: d93f2ed314ef3354eb55b9200bf57877, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   ipAddress: 127.0.0.1
   port: 54010
-  sendCloseButton: {fileID: 2039929194}
-  startClientButton: {fileID: 1880788897}
-  ClientLogger: {fileID: 393140546}
 --- !u!4 &1032946125
 Transform:
   m_ObjectHideFlags: 0
@@ -1615,8 +1608,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_MethodName: StartServer
+      - m_Target: {fileID: 424903499}
+        m_MethodName: 
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -1821,8 +1814,8 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
-        m_MethodName: StartClient
+      - m_Target: {fileID: 424903499}
+        m_MethodName: 
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

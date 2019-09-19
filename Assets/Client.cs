@@ -2,7 +2,6 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class Client : MonoBehaviour
 {
@@ -10,9 +9,6 @@ public class Client : MonoBehaviour
     [Header("Network")]
     public string ipAddress = "127.0.0.1";
     public int port = 54010;
-    [Header("UI References")]
-    public Button sendCloseButton;
-    public Text ClientLogger = null;
     #endregion
 
     #region Network m_Variables
@@ -20,17 +16,14 @@ public class Client : MonoBehaviour
     private NetworkStream m_netStream = null;
     private byte[] m_buffer = new byte[49152];
     private int m_bytesReceived = 0;
-    private string m_receivedMessage = "";
+    protected string m_receivedMessage = "";
     #endregion
 
-    //Set UI interactable properties
-    private void Start()
-    {
-        sendCloseButton.interactable = false;
-    }
-    
+    protected Action OnClientStarted = null;    //Delegate triggered when client start
+    protected Action OnClientClosed = null;    //Delegate triggered when client close
+
     //Start client and stablish connection with server
-    public void StartClient()
+    protected void StartClient()
     {
         //Early out
         if(m_client != null)
@@ -45,8 +38,8 @@ public class Client : MonoBehaviour
             m_client = new TcpClient();
             //Set and enable client
             m_client.Connect(ipAddress, port);
-            ClientLog("Client Started", Color.green);
-            sendCloseButton.interactable = true;
+            ClientLog("Client Started", Color.green);            
+            OnClientStarted?.Invoke();           
         }
         catch (SocketException)
         {
@@ -55,44 +48,39 @@ public class Client : MonoBehaviour
         }        
     }
 
-    //Check if the client has been recived something
-    private void Update()
+    #region Communication Client/Server
+    protected void SendMessageToServer(string sendMsg)
     {
-        //If there is something received
-        if (!string.IsNullOrEmpty(m_receivedMessage))
-        {
-            ClientLog("Msg recived on Client: " + "<b>"+m_receivedMessage+"</b>", Color.green);
-            m_receivedMessage = "";
-            //Set UI interactable properties
-            sendCloseButton.interactable = false;
-            
-            //Close message has to be there, as UI calls can't be called on no-main threads
-            ClientLog("Close Connection with Server", Color.red);
-        }
-    }
-
-    //Send "Close" message to the server, and waits the "Close" message response from server
-    public void SendCloseToServer() 
-    {
-        if (!m_client.Connected) return; //early out if there is nothing connected
-        
-        //Set UI interactable properties        
-        sendCloseButton.interactable = false;
+        if (!m_client.Connected) return; //early out if there is nothing connected       
 
         //Stablish Client NetworkStream information
         m_netStream = m_client.GetStream();
-        //Start Async Reading
+        //Start Async Reading from Server and manage the response on MessageReceived function
         m_netStream.BeginRead(m_buffer, 0, m_buffer.Length, MessageReceived, null);
 
         //Build message to server
-        string sendMsg = "Close";
         byte[] msg = Encoding.ASCII.GetBytes(sendMsg);
         //Start Sync Writing
         m_netStream.Write(msg, 0, msg.Length);
-        ClientLog("Msg sended to Server: "+"<b>Close</b>", Color.blue);
+        ClientLog("Msg sended to Server: " + "<b>"+sendMsg+"</b>", Color.blue);
     }
 
-    //Callback called when "BeginRead" is ended
+
+    //What to do with the received message on client
+    protected virtual void OnMessageReceived(string receivedMessage)
+    {
+        switch (receivedMessage)
+        {
+            case "Close":
+                CloseClient();
+                break;
+            default:
+                ClientLog("Received message :" + receivedMessage +", has no special behaviuor");
+                break;
+        }
+    }
+
+    //AsyncCallback called when "BeginRead" is ended, waiting the message response from server
     private void MessageReceived(IAsyncResult result)
     {
         if (result.IsCompleted && m_client.Connected)
@@ -100,38 +88,35 @@ public class Client : MonoBehaviour
             //build message received from server
             m_bytesReceived = m_netStream.EndRead(result);
             m_receivedMessage = Encoding.ASCII.GetString(m_buffer, 0, m_bytesReceived);
-            
-            //If message recived from server is "Close", close that client
-            if (m_receivedMessage == "Close")
-            {
-                CloseClient();
-            }
+
+            OnMessageReceived(m_receivedMessage);
         }
     }
+    #endregion
 
+    #region Close Client
     //Close client connection
     private void CloseClient()
     {
-        if (m_client.Connected)
-        {
-            //Reset everything to defaults
+        //Reset everything to defaults        
+        if (m_client.Connected)        
             m_client.Close();
+
+        if(m_client != null)
             m_client = null;
-            //Set UI interactable properties        
-            sendCloseButton.interactable = false;
-        }
+
+        OnClientClosed?.Invoke();
     }
+    #endregion
 
     //Custom Server Log
     #region ClientLog
-    private void ClientLog(string msg, Color color)
+    protected virtual void ClientLog(string msg, Color color)
     {
-        ClientLogger.text += '\n' + "<color=#" + ColorUtility.ToHtmlStringRGBA(color) + ">- " + msg + "</color>";
         Debug.Log("Client: " + msg);
     }
-    private void ClientLog(string msg)
+    protected virtual void ClientLog(string msg)
     {
-        ClientLogger.text += '\n' + "- " + msg;
         Debug.Log("Client: " + msg);
     }
     #endregion
