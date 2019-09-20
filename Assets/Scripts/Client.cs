@@ -44,7 +44,7 @@ public class Client : MonoBehaviour
             ClientLog("Client Started", Color.green);
             OnClientStarted?.Invoke();
 
-            //Start Listening Messages coroutine
+            //Start Listening Server Messages coroutine
             m_ListenServerMsgsCoroutine = ListenServerMessages();
             StartCoroutine(m_ListenServerMsgsCoroutine);
         }
@@ -56,6 +56,7 @@ public class Client : MonoBehaviour
     }
 
     #region Communication Client<->Server
+    //Coroutine waiting server messages
     private IEnumerator ListenServerMessages()
     {
         //early out if there is nothing connected       
@@ -72,10 +73,17 @@ public class Client : MonoBehaviour
             //Start Async Reading from Server and manage the response on MessageReceived function
             m_netStream.BeginRead(m_buffer, 0, m_buffer.Length, MessageReceived, null);
 
+            if(m_bytesReceived > 0)
+            {
+                OnMessageReceived(m_receivedMessage);
+                m_bytesReceived = 0;
+            }
+
             yield return new WaitForSeconds(waitingMessagesFrequency);
 
-        }while(m_bytesReceived >= 0 && m_netStream != null);        
-
+        }while(m_bytesReceived >= 0 && m_netStream != null);
+        //The communication is over
+        //CloseClient();
     }
 
     //What to do with the received message on client
@@ -91,16 +99,20 @@ public class Client : MonoBehaviour
                 ClientLog("Received message " + receivedMessage + ", has no special behaviuor", Color.red);
                 break;
         }
-        this.m_receivedMessage = null;
     }
 
     //Send custom string msg to server
     protected void SendMessageToServer(string sendMsg)
     {
-        if (!m_client.Connected) return; //early out if there is nothing connected       
+        //early out if there is nothing connected       
+        if (!m_client.Connected)
+        {
+            ClientLog("Socket Error: Stablish Server connection first", Color.red);
+            return;
+        }
 
         //Build message to server
-        byte[] msg = Encoding.ASCII.GetBytes(sendMsg);
+        byte[] msg = Encoding.ASCII.GetBytes(sendMsg); //Encode message as bytes
         //Start Sync Writing
         m_netStream.Write(msg, 0, msg.Length);
         ClientLog("Msg sended to Server: " + "<b>"+sendMsg+"</b>", Color.blue);
@@ -114,8 +126,6 @@ public class Client : MonoBehaviour
             //build message received from server
             m_bytesReceived = m_netStream.EndRead(result);
             m_receivedMessage = Encoding.ASCII.GetString(m_buffer, 0, m_bytesReceived);
-
-            OnMessageReceived(m_receivedMessage);         
         }
     }
     #endregion
@@ -137,15 +147,16 @@ public class Client : MonoBehaviour
     }
     #endregion
 
-    //Custom Server Log
     #region ClientLog
+    //Custom Client Log - With Text Color
     protected virtual void ClientLog(string msg, Color color)
     {
-        Debug.Log("Client: " + msg);
+        Debug.Log("<b>Client:</b> " + msg);
     }
+    //Custom Client Log - Without Text Color
     protected virtual void ClientLog(string msg)
     {
-        Debug.Log("Client: " + msg);
+        Debug.Log("<b>Client:</b> " + msg);
     }
     #endregion
 

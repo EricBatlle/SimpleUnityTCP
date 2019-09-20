@@ -46,8 +46,8 @@ public class Server : MonoBehaviour
         //If some client stablish connection
         if (m_client != null && m_ListenClientMsgsCoroutine == null)
         {
-            //Start Listening Messages coroutine
-            m_ListenClientMsgsCoroutine = ClientCommunication();
+            //Start Listening Client Messages coroutine
+            m_ListenClientMsgsCoroutine = ListenClientMessages();
             StartCoroutine(m_ListenClientMsgsCoroutine);
         }
     }
@@ -60,8 +60,8 @@ public class Server : MonoBehaviour
     }
 
     #region Communication Server<->Client
-    //Coroutine that manage client communication while client is connected to the server
-    private IEnumerator ClientCommunication()
+    //Coroutine waiting client messages while client is connected to the server
+    private IEnumerator ListenClientMessages()
     {        
         //Restart values in case there are more than one client connections
         m_bytesReceived = 0;
@@ -126,7 +126,7 @@ public class Server : MonoBehaviour
         ServerLog("Msg sended to Client: " + "<b>" + sendMsg + "</b>", Color.blue);
     }
 
-    //Callback called when "BeginRead" is ended
+    //AsyncCallback called when "BeginRead" is ended, waiting the message response from client
     private void MessageReceived(IAsyncResult result)
     {
         if (result.IsCompleted && m_client.Connected)
@@ -173,20 +173,19 @@ public class Server : MonoBehaviour
 
         //Waiting to Accept a new Client
         m_server.BeginAcceptTcpClient(ClientConnected, null);
-    }        
+    }
     #endregion
-
-    //Custom Server Log
+   
     #region ServerLog
-    //With Text Color
+    //Custom Server Log - With Text Color
     protected virtual void ServerLog(string msg, Color color)
     {
-        Debug.Log("Server: " + msg);
+        Debug.Log("<b>Server:</b> " + msg);
     }
-    //Without Text Color
+    //Custom Server Log - Without Text Color
     protected virtual void ServerLog(string msg)
     {
-        Debug.Log("Server: " + msg);
+        Debug.Log("<b>Server:</b> " + msg);
     }
     #endregion
 
