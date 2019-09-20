@@ -11,7 +11,7 @@ public class BeautyServer : Server
     public Text ServerLogger = null;
 
     //Set UI interactable properties
-    private void Awake()
+    protected virtual void Awake()
     {
         startServerButton.interactable = true;  //Enable button to let users start the server
         startServerButton.onClick.AddListener(StartServer);

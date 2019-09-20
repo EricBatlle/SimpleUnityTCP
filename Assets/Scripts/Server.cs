@@ -11,7 +11,7 @@ public class Server : MonoBehaviour
     [Header("Network")]
     public string ipAdress = "127.0.0.1";
     public int port = 54010;
-    public float waitingMessagesFrequency = 5;
+    public float waitingMessagesFrequency = 2;
     #endregion
 
     #region  Network m_Variables
@@ -20,13 +20,12 @@ public class Server : MonoBehaviour
     private NetworkStream m_netStream = null;
     private byte[] m_buffer = new byte[49152];
     private int m_bytesReceived = 0;
-    protected string m_receivedMessage = "";
-    private IEnumerator m_ClientComCoroutine = null;
+    private string m_receivedMessage = "";
+    private IEnumerator m_ListenClientMsgsCoroutine = null;
     #endregion
 
     protected Action OnServerStarted = null;    //Delegate triggered when server start
     protected Action OnServerClosed = null;    //Delegate triggered when server close
-
 
     //Start server and wait for clients
     protected virtual void StartServer()
@@ -45,11 +44,11 @@ public class Server : MonoBehaviour
     private void Update()
     {   
         //If some client stablish connection
-        if (m_client != null && m_ClientComCoroutine == null)
+        if (m_client != null && m_ListenClientMsgsCoroutine == null)
         {
-            //Start the ClientCommunication coroutine
-            m_ClientComCoroutine = ClientCommunication();
-            StartCoroutine(m_ClientComCoroutine);
+            //Start Listening Messages coroutine
+            m_ListenClientMsgsCoroutine = ClientCommunication();
+            StartCoroutine(m_ListenClientMsgsCoroutine);
         }
     }
 
@@ -60,7 +59,7 @@ public class Server : MonoBehaviour
         m_client = m_server.EndAcceptTcpClient(res);
     }
 
-    #region Communication Server/Client
+    #region Communication Server<->Client
     //Coroutine that manage client communication while client is connected to the server
     private IEnumerator ClientCommunication()
     {        
@@ -79,14 +78,17 @@ public class Server : MonoBehaviour
             m_netStream.BeginRead(m_buffer, 0, m_buffer.Length, MessageReceived,  m_netStream);
 
             //If there is any msg, do something
-            if (m_bytesReceived > 0)            
-                OnMessageReceived(m_receivedMessage);            
+            if (m_bytesReceived > 0)
+            {
+                OnMessageReceived(m_receivedMessage);
+                m_bytesReceived = 0;
+            }
 
             yield return new WaitForSeconds(waitingMessagesFrequency);
 
         } while (m_bytesReceived >= 0 && m_netStream != null);   
         //The communication is over
-        CloseClientConnection();
+        //CloseClientConnection();
     }
 
     //What to do with the received message on server
@@ -102,12 +104,21 @@ public class Server : MonoBehaviour
                 CloseClientConnection();
                 break;
             default:
-                ServerLog("Received message :" + receivedMessage + ", has no special behaviuor", Color.red);
+                ServerLog("Received message " + receivedMessage + ", has no special behaviuor", Color.red);
                 break;
         }
     }
+
+    //Send custom string msg to client
     protected void SendMessageToClient(string sendMsg)
     {
+        //early out if there is nothing connected       
+        if (m_netStream == null)
+        {
+            ServerLog("Socket Error: Start at least one client first", Color.red);
+            return;
+        }
+
         //Build message to client        
         byte[] msgOut = Encoding.ASCII.GetBytes(sendMsg); //Encode message as bytes
         //Start Sync Writing
@@ -155,8 +166,8 @@ public class Server : MonoBehaviour
     {
         ServerLog("Close Connection with Client", Color.red);
         //Reset everything to defaults
-        StopCoroutine(m_ClientComCoroutine);
-        m_ClientComCoroutine = null;
+        StopCoroutine(m_ListenClientMsgsCoroutine);
+        m_ListenClientMsgsCoroutine = null;
         m_client.Close();
         m_client = null;
 

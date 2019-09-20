@@ -11,7 +11,7 @@ public class BeautyClient : Client
     public Text ClientLogger = null;
 
     //Set UI interactable properties
-    private void Awake()
+    protected virtual void Awake()
     {
         sendCloseButton.interactable = false;
         sendCloseButton.onClick.AddListener(SendCloseToServer);
@@ -31,22 +31,6 @@ public class BeautyClient : Client
             startClientButton.interactable = true;
             sendCloseButton.interactable = false;
         };
-    }
-
-    //Check if the client has been recived something
-    private void Update()
-    {
-        //If there is something received
-        if (!string.IsNullOrEmpty(m_receivedMessage))
-        {
-            ClientLog("Msg recived on Client: " + "<b>" + m_receivedMessage + "</b>", Color.green);
-            m_receivedMessage = "";
-            //Set UI interactable properties
-            sendCloseButton.interactable = false;
-
-            //Close message has to be there, as UI calls can't be called on no-main threads
-            ClientLog("Close Connection with Server", Color.red);
-        }
     }
 
     private void SendCloseToServer()
