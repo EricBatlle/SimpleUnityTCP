@@ -5,6 +5,9 @@ using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
 
+/// <summary>
+/// Server class shows how to implement and use TcpListener in Unity.
+/// </summary>
 public class Server : MonoBehaviour
 {
     #region Public Variables
@@ -14,29 +17,32 @@ public class Server : MonoBehaviour
     public float waitingMessagesFrequency = 2;
     #endregion
 
-    #region  Network m_Variables
-    private TcpListener m_server = null;
-    private TcpClient m_client = null;
-    private NetworkStream m_netStream = null;
-    private byte[] m_buffer = new byte[49152];
-    private int m_bytesReceived = 0;
-    private string m_receivedMessage = "";
+    #region  Private m_Variables
+    private TcpListener m_Server = null;
+    private TcpClient m_Client = null;
+    private NetworkStream m_NetStream = null;
+    private byte[] m_Buffer = new byte[49152];
+    private int m_BytesReceived = 0;
+    private string m_ReceivedMessage = "";
     private IEnumerator m_ListenClientMsgsCoroutine = null;
     #endregion
 
+    #region Delegate Variables
     protected Action OnServerStarted = null;    //Delegate triggered when server start
-    protected Action OnServerClosed = null;    //Delegate triggered when server close
+    protected Action OnServerClosed = null;     //Delegate triggered when server close
+    protected Action OnClientConnected = null;  //Delegate triggered when the server stablish connection with client
+    #endregion
 
     //Start server and wait for clients
     protected virtual void StartServer()
     {        
         //Set and enable Server 
         IPAddress ip = IPAddress.Parse(ipAdress);
-        m_server = new TcpListener(ip, port);
-        m_server.Start();
+        m_Server = new TcpListener(ip, port);
+        m_Server.Start();
         ServerLog("Server Started", Color.green);
         //Wait for async client connection 
-        m_server.BeginAcceptTcpClient(ClientConnected, null);
+        m_Server.BeginAcceptTcpClient(ClientConnected, null);
         OnServerStarted?.Invoke();
     }
 
@@ -44,7 +50,7 @@ public class Server : MonoBehaviour
     private void Update()
     {   
         //If some client stablish connection
-        if (m_client != null && m_ListenClientMsgsCoroutine == null)
+        if (m_Client != null && m_ListenClientMsgsCoroutine == null)
         {
             //Start Listening Client Messages coroutine
             m_ListenClientMsgsCoroutine = ListenClientMessages();
@@ -56,7 +62,8 @@ public class Server : MonoBehaviour
     private void ClientConnected(IAsyncResult res)
     {
         //set the client reference
-        m_client = m_server.EndAcceptTcpClient(res);
+        m_Client = m_Server.EndAcceptTcpClient(res);
+        OnClientConnected?.Invoke();
     }
 
     #region Communication Server<->Client
@@ -64,29 +71,29 @@ public class Server : MonoBehaviour
     private IEnumerator ListenClientMessages()
     {        
         //Restart values in case there are more than one client connections
-        m_bytesReceived = 0;
-        m_buffer = new byte[49152];
+        m_BytesReceived = 0;
+        m_Buffer = new byte[49152];
 
         //Stablish Client NetworkStream information
-        m_netStream = m_client.GetStream();
+        m_NetStream = m_Client.GetStream();
 
         //While there is a connection with the client, await for messages
         do
         {
             ServerLog("Server is listening client msg...", Color.yellow);
             //Start Async Reading from Client and manage the response on MessageReceived function
-            m_netStream.BeginRead(m_buffer, 0, m_buffer.Length, MessageReceived,  m_netStream);
+            m_NetStream.BeginRead(m_Buffer, 0, m_Buffer.Length, MessageReceived,  m_NetStream);
 
             //If there is any msg, do something
-            if (m_bytesReceived > 0)
+            if (m_BytesReceived > 0)
             {
-                OnMessageReceived(m_receivedMessage);
-                m_bytesReceived = 0;
+                OnMessageReceived(m_ReceivedMessage);
+                m_BytesReceived = 0;
             }
 
             yield return new WaitForSeconds(waitingMessagesFrequency);
 
-        } while (m_bytesReceived >= 0 && m_netStream != null);   
+        } while (m_BytesReceived >= 0 && m_NetStream != null);   
         //The communication is over
         //CloseClientConnection();
     }
@@ -113,7 +120,7 @@ public class Server : MonoBehaviour
     protected void SendMessageToClient(string sendMsg)
     {
         //early out if there is nothing connected       
-        if (m_netStream == null)
+        if (m_NetStream == null)
         {
             ServerLog("Socket Error: Start at least one client first", Color.red);
             return;
@@ -122,18 +129,18 @@ public class Server : MonoBehaviour
         //Build message to client        
         byte[] msgOut = Encoding.ASCII.GetBytes(sendMsg); //Encode message as bytes
         //Start Sync Writing
-        m_netStream.Write(msgOut, 0, msgOut.Length);
+        m_NetStream.Write(msgOut, 0, msgOut.Length);
         ServerLog("Msg sended to Client: " + "<b>" + sendMsg + "</b>", Color.blue);
     }
 
     //AsyncCallback called when "BeginRead" is ended, waiting the message response from client
     private void MessageReceived(IAsyncResult result)
     {
-        if (result.IsCompleted && m_client.Connected)
+        if (result.IsCompleted && m_Client.Connected)
         {
             //build message received from client
-            m_bytesReceived = m_netStream.EndRead(result);                              //End async reading
-            m_receivedMessage = Encoding.ASCII.GetString(m_buffer, 0, m_bytesReceived); //De-encode message as string
+            m_BytesReceived = m_NetStream.EndRead(result);                              //End async reading
+            m_ReceivedMessage = Encoding.ASCII.GetString(m_Buffer, 0, m_BytesReceived); //De-encode message as string
         }
     }
     #endregion    
@@ -144,18 +151,18 @@ public class Server : MonoBehaviour
     {
         ServerLog("Server Closed", Color.red);
         //Close client connection
-        if (m_client != null)
+        if (m_Client != null)
         {
-            m_netStream.Close();
-            m_netStream = null;
-            m_client.Close();
-            m_client = null;
+            m_NetStream.Close();
+            m_NetStream = null;
+            m_Client.Close();
+            m_Client = null;
         }
         //Close server connection
-        if (m_server != null)
+        if (m_Server != null)
         {
-            m_server.Stop();
-            m_server = null;
+            m_Server.Stop();
+            m_Server = null;
         }
 
         OnServerClosed?.Invoke();
@@ -168,11 +175,11 @@ public class Server : MonoBehaviour
         //Reset everything to defaults
         StopCoroutine(m_ListenClientMsgsCoroutine);
         m_ListenClientMsgsCoroutine = null;
-        m_client.Close();
-        m_client = null;
+        m_Client.Close();
+        m_Client = null;
 
         //Waiting to Accept a new Client
-        m_server.BeginAcceptTcpClient(ClientConnected, null);
+        m_Server.BeginAcceptTcpClient(ClientConnected, null);
     }
     #endregion
    
