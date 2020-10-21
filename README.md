@@ -1,4 +1,6 @@
 # SimpleUnityTCP 🖧 
+*Created by Eric Batlle Clavero*
+
 
 A simple **demo-project** to show how **TCP** communication works on **Unity** environment, builded with **C#** and using [System.Net.Sockets](https://docs.microsoft.com/es-es/dotnet/api/system.net.sockets?view=netframework-4.7.2). 
 
