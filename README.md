@@ -29,7 +29,7 @@ If you only want to see the app working, just run the ``SimpleTCP.exe`` which is
 
 If you want to open the project, you will need to have **Unity** installed with the **version 2017 or higher**.
 
-If you only want to scratch the code, either inside the unity project or simply dragging the **.cs** classes on your editor, you have to watch on to this classes, which are located on ``Assets``:
+If you only want to scratch the code, either inside the unity project or simply dragging the **.cs** classes on your editor, you have to watch on to this classes, which are located on ``Assets\Scripts``:
 
 * ``Server.cs``
 * ``Client.cs``
@@ -39,12 +39,19 @@ If you only want to scratch the code, either inside the unity project or simply 
 
 The stablished communication and workflow stablished right now follows the next order:
 
-* **Start the Server** and let him waiting for client connections.
-* **Start the Client** and connect him to the server.
-* **Server waits** for client messages...
-* **Client send** the message *Close* to the server.
-* **Server recives** that *Close* message.
-* **Server send a response** to the client, sending the same message, *Close*.
-* **Client recives** the message, **close the connection** with the server and shuts down.
-* **Server close the connection** with the client.
-* **Server shuts down**
+* **Start the Server** and let it waiting for client connections.
+* **Start the Client** and connect it to the server.
+* **Server/Client waits** for client/server messages...
+* **Client/Server sends** any type of message to the server/client.
+* **Server/Client sends** recives the message from the client/server.
+* **Server/Client waits** for new client/server messages...
+
+* **In Case Client sends "Close" to Server**
+* **Client sends "Close" to Server**, and waits a timeOut to disconnect from it.
+* **Server recives** that *Close* message and **closes the connection** with the client.
+* **Server** waits for new incoming client connections.
+
+* **Server shuts down** (Optional)
+
+Keep in mind that this "Close" system is not the typical four-way handshake used in TCP, but it's builded like this to keep it simple and understandable.
+You can learn more about TCP Connection termination [here](https://en.wikipedia.org/wiki/Transmission_Control_Protocol#:~:text=The%20connection%20termination%20phase%20uses,end%20acknowledges%20with%20an%20ACK.).

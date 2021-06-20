@@ -9,160 +9,186 @@ using UnityEngine;
 /// </summary>
 public class Client : MonoBehaviour
 {
-    #region Public Variables
-    [Header("Network")]
-    public string ipAddress = "127.0.0.1";
-    public int port = 54010;
-    public float waitingMessagesFrequency = 2;
-    #endregion
+	#region Public Variables
+	[Header("Network")]
+	public string ipAdress = "127.0.0.1";
+	public int port = 54010;
+	public float waitingMessagesFrequency = 1;
+	#endregion
 
-    #region Private m_Variables
-    private TcpClient m_Client;
-    private NetworkStream m_NetStream = null;
-    private byte[] m_Buffer = new byte[49152];
-    private int m_BytesReceived = 0;
-    private string m_ReceivedMessage = "";
-    private IEnumerator m_ListenServerMsgsCoroutine = null;
-    #endregion
+	#region Private m_Variables
+	private TcpClient m_Client;
+	private NetworkStream m_NetStream = null;
+	private byte[] m_Buffer = new byte[49152];
+	private int m_BytesReceived = 0;
+	private string m_ReceivedMessage = "";
+	private IEnumerator m_ListenServerMsgsCoroutine = null;
 
-    #region Delegate Variables
-    protected Action OnClientStarted = null;    //Delegate triggered when client start
-    protected Action OnClientClosed = null;    //Delegate triggered when client close
-    #endregion
+	[Tooltip("This value should be >= to Server waitingMessagesFrequency")]
+	[Min(0)] private float m_DelayedCloseTime = 0.5f;
+	#endregion
 
-    //Start client and stablish connection with server
-    protected void StartClient()
-    {
-        //Early out
-        if(m_Client != null)
-        {
-            ClientLog("There is already a runing client", Color.red);
-            return;
-        }
-        
-        try
-        {
-            //Create new client
-            m_Client = new TcpClient();
-            //Set and enable client
-            m_Client.Connect(ipAddress, port);
-            ClientLog("Client Started", Color.green);
-            OnClientStarted?.Invoke();
+	#region Delegate Variables
+	protected Action OnClientStarted = null;    //Delegate triggered when client start
+	protected Action OnClientClosed = null;     //Delegate triggered when client close
+	#endregion
 
-            //Start Listening Server Messages coroutine
-            m_ListenServerMsgsCoroutine = ListenServerMessages();
-            StartCoroutine(m_ListenServerMsgsCoroutine);
-        }
-        catch (SocketException)
-        {
-            ClientLog("Socket Exception: Start Server first", Color.red);
-            CloseClient();
-        }        
-    }
+	//Start client and stablish connection with server
+	protected void StartClient()
+	{
+		//Early out
+		if (m_Client != null)
+		{
+			ClientLog($"There is already a runing client on {ipAdress}::{port}", Color.red);
+			return;
+		}
 
-    #region Communication Client<->Server
-    //Coroutine waiting server messages
-    private IEnumerator ListenServerMessages()
-    {
-        //early out if there is nothing connected       
-        if (!m_Client.Connected)        
-            yield break;                
+		try
+		{
+			//Create new client
+			m_Client = new TcpClient();
+			//Set and enable client
+			m_Client.Connect(ipAdress, port);
+			ClientLog($"Client Started on {ipAdress}::{port}", Color.green);
+			OnClientStarted?.Invoke();
+			m_ListenServerMsgsCoroutine = ListenServerMessages();
+			StartCoroutine(m_ListenServerMsgsCoroutine);
+		}
+		catch (SocketException)
+		{
+			ClientLog("Socket Exception: Start Server first", Color.red);
+			CloseClient();
+		}
+	}
 
-        //Stablish Client NetworkStream information
-        m_NetStream = m_Client.GetStream();
+	#region Communication Client<->Server
+	//Coroutine waiting server messages
+	private IEnumerator ListenServerMessages()
+	{
+		//early out if there is nothing connected
+		if (!m_Client.Connected)
+			yield break;
 
-        //Start Async Reading from Server and manage the response on MessageReceived function
-        do
-        {
-            ClientLog("Client is listening server msg...", Color.yellow);
-            //Start Async Reading from Server and manage the response on MessageReceived function
-            m_NetStream.BeginRead(m_Buffer, 0, m_Buffer.Length, MessageReceived, null);
+		//Stablish Client NetworkStream information
+		m_NetStream = m_Client.GetStream();
 
-            if(m_BytesReceived > 0)
-            {
-                OnMessageReceived(m_ReceivedMessage);
-                m_BytesReceived = 0;
-            }
+		//Start Async Reading from Server and manage the response on MessageReceived function
+		do
+		{
+			ClientLog("Client is listening server msg...", Color.yellow);
+			//Start Async Reading from Server and manage the response on MessageReceived function
+			m_NetStream.BeginRead(m_Buffer, 0, m_Buffer.Length, MessageReceived, null);
 
-            yield return new WaitForSeconds(waitingMessagesFrequency);
+			if (m_BytesReceived > 0)
+			{
+				OnMessageReceived(m_ReceivedMessage);
+				m_BytesReceived = 0;
+			}
 
-        }while(m_BytesReceived >= 0 && m_NetStream != null);
-        //The communication is over
-        //CloseClient();
-    }
+			yield return new WaitForSeconds(waitingMessagesFrequency);
 
-    //What to do with the received message on client
-    protected virtual void OnMessageReceived(string receivedMessage)
-    {
-        ClientLog("Msg recived on Client: " + "<b>" + receivedMessage + "</b>", Color.green);
-        switch (m_ReceivedMessage)
-        {
-            case "Close":
-                CloseClient();
-                break;
-            default:
-                ClientLog("Received message " + receivedMessage + ", has no special behaviuor", Color.red);
-                break;
-        }
-    }
+		} while (m_BytesReceived >= 0 && m_NetStream != null && m_Client != null);
+		//Communication is over
+	}
 
-    //Send custom string msg to server
-    protected void SendMessageToServer(string sendMsg)
-    {
-        //early out if there is nothing connected       
-        if (!m_Client.Connected)
-        {
-            ClientLog("Socket Error: Stablish Server connection first", Color.red);
-            return;
-        }
+	//What to do with the received message on client
+	protected virtual void OnMessageReceived(string receivedMessage)
+	{
+		ClientLog($"Msg recived on Client: <b>{receivedMessage}</b>", Color.green);
+		switch (receivedMessage)
+		{
+			case "Close":
+				CloseClient();
+				break;
+			default:
+				ClientLog($"Received message <b>{receivedMessage}</b>, has no special behaviuor", Color.red);
+				break;
+		}
+	}
 
-        //Build message to server
-        byte[] msg = Encoding.ASCII.GetBytes(sendMsg); //Encode message as bytes
-        //Start Sync Writing
-        m_NetStream.Write(msg, 0, msg.Length);
-        ClientLog("Msg sended to Server: " + "<b>"+sendMsg+"</b>", Color.blue);
-    }
+	//Send custom string msg to server
+	protected virtual void SendMessageToServer(string messageToSend)
+	{
+		try
+		{
+			m_NetStream = m_Client.GetStream();
+		}
+		catch (Exception)
+		{
+			ClientLog("Non-Connected Socket exception", Color.red);
+			CloseClient();
+			return;
+		}
 
-    //AsyncCallback called when "BeginRead" is ended, waiting the message response from server
-    private void MessageReceived(IAsyncResult result)
-    {
-        if (result.IsCompleted && m_Client.Connected)
-        {
-            //build message received from server
-            m_BytesReceived = m_NetStream.EndRead(result);
-            m_ReceivedMessage = Encoding.ASCII.GetString(m_Buffer, 0, m_BytesReceived);
-        }
-    }
-    #endregion
+		//early out if there is nothing connected
+		if (!m_Client.Connected)
+		{
+			ClientLog("Socket Error: Stablish Server connection first", Color.red);
+			return;
+		}
 
-    #region Close Client
-    //Close client connection
-    private void CloseClient()
-    {
-        ClientLog("Client Closed", Color.red);
+		//Build message to server
+		byte[] encodedMessage = Encoding.ASCII.GetBytes(messageToSend); //Encode message as bytes
 
-        //Reset everything to defaults        
-        if (m_Client.Connected)        
-            m_Client.Close();
+		//Start Sync Writing
+		m_NetStream.Write(encodedMessage, 0, encodedMessage.Length);
+		ClientLog($"Msg sended to Server: <b>{messageToSend}</b>", Color.blue);
 
-        if(m_Client != null)
-            m_Client = null;
+		//In case client informs the server that closes the connection
+		if (messageToSend == "Close")
+		{
+			//Stop listening server messages
+			StopCoroutine(m_ListenServerMsgsCoroutine);
+			//It has to wait before closing, to ensure Close message is sended
+			StartCoroutine(DelayedCloseClient(waitingMessagesFrequency + m_DelayedCloseTime));
+		}
+	}
 
-        OnClientClosed?.Invoke();
-    }
-    #endregion
+	//AsyncCallback called when "BeginRead" is ended, waiting the message response from server
+	private void MessageReceived(IAsyncResult result)
+	{
+		if (result.IsCompleted && m_Client.Connected)
+		{
+			//build message received from server
+			m_BytesReceived = m_NetStream.EndRead(result);
+			m_ReceivedMessage = Encoding.ASCII.GetString(m_Buffer, 0, m_BytesReceived);
+		}
+	}
+	#endregion
 
-    #region ClientLog
-    //Custom Client Log - With Text Color
-    protected virtual void ClientLog(string msg, Color color)
-    {
-        Debug.Log("<b>Client:</b> " + msg);
-    }
-    //Custom Client Log - Without Text Color
-    protected virtual void ClientLog(string msg)
-    {
-        Debug.Log("<b>Client:</b> " + msg);
-    }
-    #endregion
+	#region Close Client
+	//Close client connection
+	private void CloseClient()
+	{
+		ClientLog("Client Closed", Color.red);
+
+		//Reset everything to defaults
+		if (m_Client.Connected)
+			m_Client.Close();
+
+		if (m_Client != null)
+			m_Client = null;
+
+		OnClientClosed?.Invoke();
+	}
+	private IEnumerator DelayedCloseClient(float delayedTime)
+	{
+		yield return new WaitForSeconds(delayedTime);
+		CloseClient();
+	}
+	#endregion
+
+	#region ClientLog
+	//Custom Client Log - With Text Color
+	protected virtual void ClientLog(string msg, Color color)
+	{
+		Debug.Log($"<b>Client:</b> {msg}");
+	}
+	//Custom Client Log - Without Text Color
+	protected virtual void ClientLog(string msg)
+	{
+		Debug.Log($"<b>Client:</b> {msg}");
+	}
+	#endregion
 
 }
